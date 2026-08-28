@@ -14,10 +14,8 @@ export default async function TodosPage() {
   }
 
   const today = getTodayDateString();
-  const tomorrow = getTomorrowDateString();
-  const yesterday = getOffsetDateString(-1);
 
-  // Fetch todos for yesterday, today, and tomorrow + any overdue
+  // Fetch all user todos
   const allTodos = await prisma.todo.findMany({
     where: { userId: user.id },
     include: {
@@ -31,20 +29,27 @@ export default async function TodosPage() {
   });
 
   const todosByDate: Record<string, typeof allTodos> = {};
+  const globalTodos: typeof allTodos = [];
+
   allTodos.forEach((t) => {
-    if (!todosByDate[t.date]) todosByDate[t.date] = [];
-    todosByDate[t.date].push(t);
+    if (t.isGlobal || t.date === "BACKLOG") {
+      globalTodos.push(t);
+    } else {
+      if (!todosByDate[t.date]) todosByDate[t.date] = [];
+      todosByDate[t.date].push(t);
+    }
   });
 
   // Overdue
   const overdueTodos = allTodos
-    .filter((t) => t.date < today && t.status === "PENDING")
+    .filter((t) => !t.isGlobal && t.date !== "BACKLOG" && t.date < today && t.status === "PENDING")
     .map((t) => ({ id: t.id, title: t.title, date: t.date }));
 
   return (
     <TodosPageView
       initialDate={today}
       todosByDate={todosByDate}
+      globalTodos={globalTodos}
       overdueTodos={overdueTodos}
     />
   );

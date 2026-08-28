@@ -129,7 +129,50 @@ async function runContinuityE2ETest() {
   });
   console.log(`✅    Tomorrow (${tomorrow}) currently has ${tomorrowTodos.length} planned task(s).`);
 
-  console.log("\n🎉 ALL CONTINUITY VERIFICATION TESTS PASSED SUCCESSFULLY!\n");
+  // 8. Verify Reminders & Global Tasks System
+  console.log("\n⏰ 8. Testing Reminders & Global Tasks System...");
+  const globalTodo = await prisma.todo.create({
+    data: {
+      userId: user.id,
+      title: "Quarterly security audit and key rotation",
+      date: "BACKLOG",
+      isGlobal: true,
+      priority: "HIGH",
+      dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000), // 7 days deadline
+      remindAt: new Date(Date.now() + 2 * 3600 * 1000), // 2 hours alarm
+    },
+  });
+  console.log(`✅    Created Global Backlog Task: "${globalTodo.title}" with due date and alarm.`);
+
+  const testReminder = await prisma.reminder.create({
+    data: {
+      userId: user.id,
+      title: "Check staging deploy health",
+      remindAt: new Date(Date.now() - 1000), // Due now
+      dueDate: new Date(Date.now() + 24 * 3600 * 1000),
+      priority: "URGENT",
+      status: "PENDING",
+      todoId: globalTodo.id,
+    },
+  });
+  console.log(`✅    Created Reminder: "${testReminder.title}" (Priority: ${testReminder.priority})`);
+
+  // Verify due reminder query
+  const dueReminders = await prisma.reminder.findMany({
+    where: {
+      userId: user.id,
+      status: "PENDING",
+      remindAt: { lte: new Date() },
+    },
+  });
+  console.log(`✅    Found ${dueReminders.length} due reminder(s) ready for Web Push dispatch.`);
+
+  // Cleanup test items
+  await prisma.reminder.delete({ where: { id: testReminder.id } });
+  await prisma.todo.delete({ where: { id: globalTodo.id } });
+  console.log("✅    Cleaned up test reminder and global todo entries.");
+
+  console.log("\n🎉 ALL CONTINUITY & REMINDERS VERIFICATION TESTS PASSED SUCCESSFULLY!\n");
 }
 
 runContinuityE2ETest()
@@ -140,3 +183,4 @@ runContinuityE2ETest()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

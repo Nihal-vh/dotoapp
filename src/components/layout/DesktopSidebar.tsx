@@ -19,7 +19,9 @@ interface DesktopSidebarProps {
   pendingTodosCount?: number;
 }
 
-export function DesktopSidebar({ pendingTodosCount = 0 }: DesktopSidebarProps) {
+export function DesktopSidebar({
+  pendingTodosCount = 0,
+}: DesktopSidebarProps) {
   const pathname = usePathname();
 
   const navItems = [
@@ -28,6 +30,13 @@ export function DesktopSidebar({ pendingTodosCount = 0 }: DesktopSidebarProps) {
       href: "/",
       icon: Sparkles,
       active: pathname === "/",
+    },
+    {
+      name: "Tasks",
+      href: "/todos",
+      icon: CheckSquare,
+      active: pathname.startsWith("/todos"),
+      badge: pendingTodosCount > 0 ? pendingTodosCount : undefined,
     },
     {
       name: "Projects",
@@ -46,13 +55,6 @@ export function DesktopSidebar({ pendingTodosCount = 0 }: DesktopSidebarProps) {
       href: "/readings",
       icon: BookOpen,
       active: pathname.startsWith("/readings"),
-    },
-    {
-      name: "Tasks",
-      href: "/todos",
-      icon: CheckSquare,
-      active: pathname.startsWith("/todos"),
-      badge: pendingTodosCount > 0 ? pendingTodosCount : undefined,
     },
     {
       name: "Analytics",
@@ -95,7 +97,7 @@ export function DesktopSidebar({ pendingTodosCount = 0 }: DesktopSidebarProps) {
                   <span>{item.name}</span>
                 </div>
                 {item.badge !== undefined && (
-                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-zinc-800 px-1 text-[10px] text-zinc-300 font-mono">
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-zinc-800 px-1.5 text-[10px] text-zinc-300 font-mono">
                     {item.badge}
                   </span>
                 )}
@@ -105,8 +107,8 @@ export function DesktopSidebar({ pendingTodosCount = 0 }: DesktopSidebarProps) {
         </nav>
       </div>
 
-      <div className="px-2 py-1 text-[11px] text-zinc-400">
-        Personal Work OS
+      <div className="px-2 py-1 text-[11px] text-zinc-500">
+        Personal Work OS &bull; PWA
       </div>
     </aside>
   );

@@ -18,10 +18,11 @@ export default async function DashboardLayout({
   }
 
   const today = getTodayDateString();
+
   const pendingTodosCount = await prisma.todo.count({
     where: {
       userId: user.id,
-      date: today,
+      OR: [{ date: today }, { isGlobal: true }, { date: "BACKLOG" }],
       status: "PENDING",
     },
   });
@@ -37,7 +38,10 @@ export default async function DashboardLayout({
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col min-w-0 pb-20 md:pb-8">
-        <AppHeader userEmail={user.email} userName={user.name} />
+        <AppHeader
+          userEmail={user.email}
+          userName={user.name}
+        />
         <main className="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto">{children}</main>
       </div>
 

@@ -17,7 +17,9 @@ interface MobileBottomNavProps {
   pendingTodosCount?: number;
 }
 
-export function MobileBottomNav({ pendingTodosCount = 0 }: MobileBottomNavProps) {
+export function MobileBottomNav({
+  pendingTodosCount = 0,
+}: MobileBottomNavProps) {
   const pathname = usePathname();
 
   const navItems = [
@@ -26,6 +28,13 @@ export function MobileBottomNav({ pendingTodosCount = 0 }: MobileBottomNavProps)
       href: "/",
       icon: Sparkles,
       active: pathname === "/",
+    },
+    {
+      name: "Tasks",
+      href: "/todos",
+      icon: CheckSquare,
+      active: pathname.startsWith("/todos"),
+      badge: pendingTodosCount > 0 ? pendingTodosCount : undefined,
     },
     {
       name: "Projects",
@@ -44,13 +53,6 @@ export function MobileBottomNav({ pendingTodosCount = 0 }: MobileBottomNavProps)
       href: "/readings",
       icon: BookOpen,
       active: pathname.startsWith("/readings"),
-    },
-    {
-      name: "Tasks",
-      href: "/todos",
-      icon: CheckSquare,
-      active: pathname.startsWith("/todos"),
-      badge: pendingTodosCount > 0 ? pendingTodosCount : undefined,
     },
     {
       name: "Stats",

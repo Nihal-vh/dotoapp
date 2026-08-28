@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -8,17 +9,19 @@ generator client {
 }
 
 model User {
-  id            String          @id @default(uuid())
-  email         String          @unique
-  name          String?
-  passwordHash  String
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                String             @id @default(uuid())
+  email             String             @unique
+  name              String?
+  passwordHash      String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
-  projects      Project[]
-  learningItems LearningItem[]
-  readingItems  ReadingItem[]
-  todos         Todo[]
+  projects          Project[]
+  learningItems     LearningItem[]
+  readingItems      ReadingItem[]
+  todos             Todo[]
+  reminders         Reminder[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Project {
@@ -36,6 +39,7 @@ model Project {
   milestones  Milestone[]
   sessions    ProjectSession[]
   todos       Todo[]
+  reminders   Reminder[]
 
   @@index([userId, status])
   @@index([userId, lastWorked])
@@ -71,6 +75,7 @@ model Task {
 
   milestone   Milestone   @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   todos       Todo[]
+  reminders   Reminder[]
 
   @@index([milestoneId, position])
 }
@@ -102,6 +107,7 @@ model LearningItem {
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   topics      LearningTopic[]
   todos       Todo[]
+  reminders   Reminder[]
 
   @@index([userId, status])
 }
@@ -162,6 +168,7 @@ model ReadingItem {
 
   user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   todos          Todo[]
+  reminders      Reminder[]
 
   @@index([userId, status])
 }
@@ -171,10 +178,14 @@ model Todo {
   userId         String
   title          String
   description    String?
-  date           String            // YYYY-MM-DD for fast date filtering
+  date           String            // YYYY-MM-DD for fast date filtering or "BACKLOG"
   status         String            @default("PENDING") // PENDING, COMPLETED, SKIPPED, CARRIED_FORWARD
-  priority       String            @default("MEDIUM") // LOW, MEDIUM, HIGH
+  priority       String            @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
   position       Int               @default(0)
+  dueDate        DateTime?         // Expiry / deadline date & time
+  remindAt       DateTime?         // Specific alarm / reminder time
+  isGlobal       Boolean           @default(false) // Whether it is an ongoing / backlog global todo
+  reminderSent   Boolean           @default(false) // Whether push notification was fired
 
   // Direct typed foreign keys for polymorphic linking
   projectId      String?
@@ -192,6 +203,57 @@ model Todo {
   learningItem   LearningItem?     @relation(fields: [learningItemId], references: [id], onDelete: SetNull)
   resource       LearningResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
   readingItem    ReadingItem?      @relation(fields: [readingItemId], references: [id], onDelete: SetNull)
+  reminders      Reminder[]
 
   @@index([userId, date, status])
+  @@index([userId, isGlobal, status])
+  @@index([userId, dueDate])
+  @@index([userId, remindAt, reminderSent])
+}
+
+model Reminder {
+  id             String        @id @default(uuid())
+  userId         String
+  title          String
+  description    String?
+  remindAt       DateTime      // When the reminder / alarm should notify
+  dueDate        DateTime?     // Expiry / deadline date
+  priority       String        @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status         String        @default("PENDING") // PENDING, COMPLETED, SNOOZED, DISMISSED
+  isPushSent     Boolean       @default(false)
+
+  // Polymorphic links
+  todoId         String?
+  projectId      String?
+  projectTaskId  String?
+  learningItemId String?
+  readingItemId  String?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todo           Todo?         @relation(fields: [todoId], references: [id], onDelete: SetNull)
+  project        Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task           Task?         @relation(fields: [projectTaskId], references: [id], onDelete: SetNull)
+  learningItem   LearningItem? @relation(fields: [learningItemId], references: [id], onDelete: SetNull)
+  readingItem    ReadingItem?  @relation(fields: [readingItemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, remindAt])
+  @@index([userId, isPushSent, remindAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

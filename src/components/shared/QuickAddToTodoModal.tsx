@@ -6,7 +6,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Textarea } from "../ui/Textarea";
 import { getTodayDateString, getTomorrowDateString } from "@/lib/utils";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Plus, Clock, Layers, Bell } from "lucide-react";
 
 interface QuickAddToTodoModalProps {
   isOpen: boolean;
@@ -23,6 +23,9 @@ interface QuickAddToTodoModalProps {
     description?: string;
     date: string;
     priority: string;
+    dueDate?: string;
+    remindAt?: string;
+    isGlobal?: boolean;
     projectId?: string;
     projectTaskId?: string;
     learningItemId?: string;
@@ -48,8 +51,12 @@ export function QuickAddToTodoModal({
 
   const [title, setTitle] = useState(defaultTitle);
   const [description, setDescription] = useState(defaultDescription || "");
-  const [date, setDate] = useState(today);
+  const [scheduleType, setScheduleType] = useState<"TODAY" | "TOMORROW" | "BACKLOG">("TODAY");
   const [priority, setPriority] = useState("MEDIUM");
+  const [hasDueDate, setHasDueDate] = useState(false);
+  const [dueDate, setDueDate] = useState("");
+  const [hasReminder, setHasReminder] = useState(false);
+  const [remindAt, setRemindAt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sync title when default changes
@@ -64,11 +71,15 @@ export function QuickAddToTodoModal({
 
     setIsSubmitting(true);
     try {
+      const date = scheduleType === "TODAY" ? today : scheduleType === "TOMORROW" ? tomorrow : "BACKLOG";
       await onAddTodo({
         title: title.trim(),
         description: description.trim() || undefined,
         date,
+        isGlobal: scheduleType === "BACKLOG",
         priority,
+        dueDate: hasDueDate && dueDate ? new Date(dueDate).toISOString() : undefined,
+        remindAt: hasReminder && remindAt ? new Date(remindAt).toISOString() : undefined,
         projectId,
         projectTaskId,
         learningItemId,
@@ -85,8 +96,8 @@ export function QuickAddToTodoModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add to Daily Todos"
-      description="Schedule this item for today or tomorrow without creating duplicate records."
+      title="Add to Tasks & Reminders"
+      description="Schedule for today, tomorrow, or add to your ongoing global backlog with optional alarms & deadlines."
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -109,15 +120,15 @@ export function QuickAddToTodoModal({
           />
         </div>
 
-        {/* Date Selection Shortcut */}
+        {/* Schedule Destination */}
         <div>
           <label className="text-xs font-medium text-zinc-300 block mb-1.5">Schedule For</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => setDate(today)}
-              className={`flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-medium transition-all ${
-                date === today
+              onClick={() => setScheduleType("TODAY")}
+              className={`flex items-center justify-center gap-1.5 rounded-lg border p-2 text-xs font-medium transition-all ${
+                scheduleType === "TODAY"
                   ? "border-zinc-500 bg-zinc-800 text-white font-bold"
                   : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
               }`}
@@ -125,11 +136,12 @@ export function QuickAddToTodoModal({
               <Calendar className="h-3.5 w-3.5" />
               <span>Today</span>
             </button>
+
             <button
               type="button"
-              onClick={() => setDate(tomorrow)}
-              className={`flex items-center justify-center gap-2 rounded-lg border p-2.5 text-xs font-medium transition-all ${
-                date === tomorrow
+              onClick={() => setScheduleType("TOMORROW")}
+              className={`flex items-center justify-center gap-1.5 rounded-lg border p-2 text-xs font-medium transition-all ${
+                scheduleType === "TOMORROW"
                   ? "border-zinc-500 bg-zinc-800 text-white font-bold"
                   : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
               }`}
@@ -137,14 +149,87 @@ export function QuickAddToTodoModal({
               <Calendar className="h-3.5 w-3.5" />
               <span>Tomorrow</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setScheduleType("BACKLOG")}
+              className={`flex items-center justify-center gap-1.5 rounded-lg border p-2 text-xs font-medium transition-all ${
+                scheduleType === "BACKLOG"
+                  ? "border-zinc-500 bg-zinc-800 text-white font-bold"
+                  : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>Global / Ongoing</span>
+            </button>
           </div>
+        </div>
+
+        {/* Optional Alarm Reminder */}
+        <div className="space-y-2 pt-1 border-t border-zinc-900">
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="quickModalHasReminder"
+              className="text-xs text-zinc-300 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Bell className="h-3.5 w-3.5 text-amber-400" />
+              <span>Set Push Alarm Reminder</span>
+            </label>
+            <input
+              id="quickModalHasReminder"
+              type="checkbox"
+              checked={hasReminder}
+              onChange={(e) => setHasReminder(e.target.checked)}
+              className="rounded bg-zinc-900 border-zinc-700 text-white h-4 w-4"
+            />
+          </div>
+
+          {hasReminder && (
+            <input
+              type="datetime-local"
+              value={remindAt}
+              onChange={(e) => setRemindAt(e.target.value)}
+              className="w-full h-9 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-100 focus:outline-none"
+              required={hasReminder}
+            />
+          )}
+        </div>
+
+        {/* Optional Expiry / Deadline Date */}
+        <div className="space-y-2 pt-1 border-t border-zinc-900">
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="quickModalHasDueDate"
+              className="text-xs text-zinc-300 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Clock className="h-3.5 w-3.5 text-zinc-400" />
+              <span>Set Expiry / Deadline Date</span>
+            </label>
+            <input
+              id="quickModalHasDueDate"
+              type="checkbox"
+              checked={hasDueDate}
+              onChange={(e) => setHasDueDate(e.target.checked)}
+              className="rounded bg-zinc-900 border-zinc-700 text-white h-4 w-4"
+            />
+          </div>
+
+          {hasDueDate && (
+            <input
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full h-9 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-100 focus:outline-none"
+              required={hasDueDate}
+            />
+          )}
         </div>
 
         {/* Priority */}
         <div>
           <label className="text-xs font-medium text-zinc-300 block mb-1.5">Priority</label>
           <div className="flex gap-2">
-            {["LOW", "MEDIUM", "HIGH"].map((p) => (
+            {["LOW", "MEDIUM", "HIGH", "URGENT"].map((p) => (
               <button
                 key={p}
                 type="button"
@@ -167,7 +252,7 @@ export function QuickAddToTodoModal({
           </Button>
           <Button type="submit" variant="default" size="sm" isLoading={isSubmitting}>
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Schedule Todo
+            Save Task
           </Button>
         </div>
       </form>

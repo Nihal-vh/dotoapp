@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginAction } from "@/lib/auth/actions";
@@ -10,23 +10,41 @@ import { ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Clean up any sensitive query params if user previously submitted via standard GET
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setError(null);
     setIsLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const result = await loginAction(formData);
+    try {
+      const formData = new FormData();
+      formData.append("email", email.trim());
+      formData.append("password", password);
 
-    if (!result.success) {
-      setError(result.error || "Login failed");
+      const result = await loginAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Login failed");
+        setIsLoading(false);
+      } else {
+        router.push("/");
+        router.refresh();
+      }
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
       setIsLoading(false);
-    } else {
-      router.push("/");
-      router.refresh();
     }
   };
 
@@ -47,7 +65,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form method="POST" onSubmit={handleSubmit} className="space-y-4" action="#">
           {error && (
             <div className="rounded-xl bg-zinc-900 border border-zinc-700 p-2.5 text-xs text-zinc-300">
               {error}
@@ -59,8 +77,11 @@ export default function LoginPage() {
             <Input
               name="email"
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
+              autoComplete="email"
               autoFocus
             />
           </div>
@@ -70,8 +91,11 @@ export default function LoginPage() {
             <Input
               name="password"
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
+              autoComplete="current-password"
             />
           </div>
 

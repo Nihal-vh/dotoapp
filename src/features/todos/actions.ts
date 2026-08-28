@@ -9,8 +9,11 @@ import { getTodayDateString } from "@/lib/utils";
 const CreateTodoSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  date: z.string(),
+  date: z.string().default(getTodayDateString()),
   priority: z.string().default("MEDIUM"),
+  dueDate: z.string().optional().nullable(),
+  remindAt: z.string().optional().nullable(),
+  isGlobal: z.boolean().optional().default(false),
   projectId: z.string().optional(),
   projectTaskId: z.string().optional(),
   learningItemId: z.string().optional(),
@@ -18,7 +21,22 @@ const CreateTodoSchema = z.object({
   readingItemId: z.string().optional(),
 });
 
-export async function createTodoAction(data: z.infer<typeof CreateTodoSchema>) {
+export type CreateTodoInput = {
+  title: string;
+  description?: string;
+  date?: string;
+  priority?: string;
+  dueDate?: string | null;
+  remindAt?: string | null;
+  isGlobal?: boolean;
+  projectId?: string;
+  projectTaskId?: string;
+  learningItemId?: string;
+  resourceId?: string;
+  readingItemId?: string;
+};
+
+export async function createTodoAction(data: CreateTodoInput) {
   const user = await requireUser();
   const parsed = CreateTodoSchema.parse(data);
 
@@ -28,6 +46,9 @@ export async function createTodoAction(data: z.infer<typeof CreateTodoSchema>) {
     orderBy: { position: "desc" },
   });
 
+  const dueDateVal = parsed.dueDate ? new Date(parsed.dueDate) : null;
+  const remindAtVal = parsed.remindAt ? new Date(parsed.remindAt) : null;
+
   const todo = await prisma.todo.create({
     data: {
       userId: user.id,
@@ -36,6 +57,9 @@ export async function createTodoAction(data: z.infer<typeof CreateTodoSchema>) {
       date: parsed.date,
       priority: parsed.priority,
       status: "PENDING",
+      dueDate: dueDateVal,
+      remindAt: remindAtVal,
+      isGlobal: parsed.isGlobal,
       position: (lastTodo?.position ?? 0) + 1,
       projectId: parsed.projectId || null,
       projectTaskId: parsed.projectTaskId || null,
@@ -44,6 +68,26 @@ export async function createTodoAction(data: z.infer<typeof CreateTodoSchema>) {
       readingItemId: parsed.readingItemId || null,
     },
   });
+
+  // If a reminder alarm time was specified, also create a Reminder entry
+  if (remindAtVal) {
+    await prisma.reminder.create({
+      data: {
+        userId: user.id,
+        title: parsed.title,
+        description: parsed.description || null,
+        remindAt: remindAtVal,
+        dueDate: dueDateVal,
+        priority: parsed.priority,
+        status: "PENDING",
+        todoId: todo.id,
+        projectId: parsed.projectId || null,
+        projectTaskId: parsed.projectTaskId || null,
+        learningItemId: parsed.learningItemId || null,
+        readingItemId: parsed.readingItemId || null,
+      },
+    });
+  }
 
   revalidatePath("/");
   revalidatePath("/todos");
@@ -67,6 +111,12 @@ export async function toggleTodoStatusAction(id: string, currentStatus: string) 
       data: { status: nextStatus === "COMPLETED" ? "COMPLETED" : "TODO" },
     });
   }
+
+  // If this todo is linked to any Reminders, sync status
+  await prisma.reminder.updateMany({
+    where: { todoId: todo.id, userId: user.id },
+    data: { status: nextStatus === "COMPLETED" ? "COMPLETED" : "PENDING" },
+  });
 
   revalidatePath("/");
   revalidatePath("/todos");
@@ -123,6 +173,11 @@ export async function skipTodosAction(todoIds: string[]) {
 export async function deleteTodoAction(id: string) {
   const user = await requireUser();
 
+  // Delete attached reminders first
+  await prisma.reminder.deleteMany({
+    where: { todoId: id, userId: user.id },
+  });
+
   await prisma.todo.delete({
     where: { id, userId: user.id },
   });
@@ -130,3 +185,4 @@ export async function deleteTodoAction(id: string) {
   revalidatePath("/");
   revalidatePath("/todos");
 }
+
