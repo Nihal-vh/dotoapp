@@ -1,0 +1,197 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String?
+  passwordHash  String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  projects      Project[]
+  learningItems LearningItem[]
+  readingItems  ReadingItem[]
+  todos         Todo[]
+}
+
+model Project {
+  id          String           @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  status      String           @default("ACTIVE") // ACTIVE, PAUSED, COMPLETED, ARCHIVED
+  startHere   String?          // The current next exact action / resume pointer
+  lastWorked  DateTime?        @default(now())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones  Milestone[]
+  sessions    ProjectSession[]
+  todos       Todo[]
+
+  @@index([userId, status])
+  @@index([userId, lastWorked])
+}
+
+model Milestone {
+  id          String      @id @default(uuid())
+  projectId   String
+  name        String
+  description String?
+  status      String      @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  position    Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([projectId, position])
+}
+
+model Task {
+  id          String      @id @default(uuid())
+  milestoneId String
+  title       String
+  description String?
+  status      String      @default("TODO") // TODO, IN_PROGRESS, COMPLETED
+  priority    String      @default("MEDIUM") // LOW, MEDIUM, HIGH
+  position    Int         @default(0)
+  dueDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  milestone   Milestone   @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  todos       Todo[]
+
+  @@index([milestoneId, position])
+}
+
+model ProjectSession {
+  id           String      @id @default(uuid())
+  projectId    String
+  workedOn     String      // What did you work on?
+  completed    String      // What did you complete?
+  stoppedAt    String      // Where did you stop?
+  nextAction   String      // What is the NEXT EXACT ACTION?
+  durationMins Int?
+  createdAt    DateTime    @default(now())
+
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+model LearningItem {
+  id          String          @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  status      String          @default("IN_PROGRESS") // NOT_STARTED, IN_PROGRESS, COMPLETED, PAUSED
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics      LearningTopic[]
+  todos       Todo[]
+
+  @@index([userId, status])
+}
+
+model LearningTopic {
+  id             String             @id @default(uuid())
+  learningItemId String
+  title          String
+  description    String?
+  status         String             @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  position       Int                @default(0)
+  notes          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  learningItem   LearningItem       @relation(fields: [learningItemId], references: [id], onDelete: Cascade)
+  resources      LearningResource[]
+
+  @@index([learningItemId, position])
+}
+
+model LearningResource {
+  id              String        @id @default(uuid())
+  topicId         String
+  title           String
+  url             String?
+  type            String        @default("ARTICLE") // YOUTUBE, COURSE, DOCS, ARTICLE, WEBSITE, CUSTOM
+  status          String        @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  currentProgress String?       // e.g. "18:32" or "45%"
+  totalDuration   String?       // e.g. "42:10" or "100%"
+  resumePoint     String?       // e.g. "18:32 - understand stack vs heap"
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  topic           LearningTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  todos           Todo[]
+
+  @@index([topicId])
+}
+
+model ReadingItem {
+  id             String      @id @default(uuid())
+  userId         String
+  title          String
+  author         String?
+  type           String      @default("BOOK") // BOOK, ARTICLE, DOCS, PDF, PAPER, OTHER
+  url            String?
+  status         String      @default("IN_PROGRESS") // NOT_STARTED, IN_PROGRESS, COMPLETED, PAUSED
+  totalPages     Int?
+  currentPage    Int?
+  currentChapter String?
+  progressNotes  String?
+  resumePoint    String?     // e.g. "Page 47 - virtual memory page table format"
+  lastRead       DateTime?   @default(now())
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todos          Todo[]
+
+  @@index([userId, status])
+}
+
+model Todo {
+  id             String            @id @default(uuid())
+  userId         String
+  title          String
+  description    String?
+  date           String            // YYYY-MM-DD for fast date filtering
+  status         String            @default("PENDING") // PENDING, COMPLETED, SKIPPED, CARRIED_FORWARD
+  priority       String            @default("MEDIUM") // LOW, MEDIUM, HIGH
+  position       Int               @default(0)
+
+  // Direct typed foreign keys for polymorphic linking
+  projectId      String?
+  projectTaskId  String?
+  learningItemId String?
+  resourceId     String?
+  readingItemId  String?
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project        Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task           Task?             @relation(fields: [projectTaskId], references: [id], onDelete: SetNull)
+  learningItem   LearningItem?     @relation(fields: [learningItemId], references: [id], onDelete: SetNull)
+  resource       LearningResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+  readingItem    ReadingItem?      @relation(fields: [readingItemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date, status])
+}
