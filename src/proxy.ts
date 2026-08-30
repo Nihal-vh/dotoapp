@@ -12,8 +12,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/learning") ||
     pathname.startsWith("/readings") ||
     pathname.startsWith("/todos") ||
-    pathname.startsWith("/analytics") ||
-    pathname.startsWith("/reminders");
+    pathname.startsWith("/analytics");
 
   // Redirect to /login only if user has no session cookie at all on protected pages
   if (isProtectedPath && !sessionCookie) {
@@ -38,6 +37,6 @@ export const config = {
     "/readings/:path*",
     "/todos/:path*",
     "/analytics/:path*",
-    "/reminders/:path*",
   ],
 };
+
