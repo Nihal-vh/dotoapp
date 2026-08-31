@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle2, Circle, Clock, Plus, Video, ExternalLink, BookOpen, Edit3 } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Plus, Video, ExternalLink, BookOpen, Edit3, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { updateTopicStatusAction, createLearningTopicAction } from "../actions";
 import { UpdateResourceModal } from "./UpdateResourceModal";
+import { UpdateTopicModal } from "./UpdateTopicModal";
 import { CreateResourceModal } from "./CreateResourceModal";
 import { QuickAddToTodoModal } from "@/components/shared/QuickAddToTodoModal";
 import { createTodoAction } from "@/features/todos/actions";
@@ -42,6 +43,7 @@ export function RoadmapTimeline({ learningItemId, topics }: RoadmapTimelineProps
   const [newTopicTitle, setNewTopicTitle] = useState("");
   const [newTopicDesc, setNewTopicDesc] = useState("");
 
+  const [editingTopic, setEditingTopic] = useState<RoadmapTopicData | null>(null);
   const [updatingResource, setUpdatingResource] = useState<TopicResourceData | null>(null);
   const [addingResourceTopicId, setAddingResourceTopicId] = useState<string | null>(null);
 
@@ -178,15 +180,28 @@ export function RoadmapTimeline({ learningItemId, topics }: RoadmapTimelineProps
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAddingResourceTopicId(topic.id)}
-                  className="text-xs h-7 px-2"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Resource
-                </Button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingTopic(topic)}
+                    className="text-xs h-7 px-2 text-zinc-400 hover:text-white"
+                    title="Edit topic"
+                  >
+                    <Settings2 className="h-3.5 w-3.5 mr-1" />
+                    Edit
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddingResourceTopicId(topic.id)}
+                    className="text-xs h-7 px-2"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Resource
+                  </Button>
+                </div>
               </div>
 
               {/* Topic Resources */}
@@ -252,7 +267,7 @@ export function RoadmapTimeline({ learningItemId, topics }: RoadmapTimelineProps
                             className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white transition-colors"
                           >
                             <Edit3 className="h-3 w-3" />
-                            <span>Update Progress</span>
+                            <span>Edit / Progress</span>
                           </button>
 
                           <button
@@ -280,6 +295,15 @@ export function RoadmapTimeline({ learningItemId, topics }: RoadmapTimelineProps
       </div>
 
       {/* Modals */}
+      {editingTopic && (
+        <UpdateTopicModal
+          isOpen={true}
+          onClose={() => setEditingTopic(null)}
+          topic={editingTopic}
+          learningItemId={learningItemId}
+        />
+      )}
+
       {updatingResource && (
         <UpdateResourceModal
           isOpen={true}

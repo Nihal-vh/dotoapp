@@ -1,8 +1,11 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
 import { formatRelativeTime } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Edit3 } from "lucide-react";
 import { Progress } from "@/components/ui/Progress";
+import { UpdateLearningModal } from "./UpdateLearningModal";
 
 export interface LearningSummary {
   id: string;
@@ -33,6 +36,7 @@ interface LearningCardProps {
 }
 
 export function LearningCard({ learning }: LearningCardProps) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const activeResource = learning.currentTopic?.activeResource;
 
   return (
@@ -64,14 +68,31 @@ export function LearningCard({ learning }: LearningCardProps) {
         <span className="text-[11px] text-zinc-500">
           {formatRelativeTime(learning.updatedAt)}
         </span>
-        <Link
-          href={`/learning/${learning.id}`}
-          className="inline-flex items-center gap-1 text-xs text-white hover:underline"
-        >
-          <span>Open</span>
-          <ArrowRight className="h-3 w-3" />
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsEditOpen(true)}
+            className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+          >
+            <Edit3 className="h-3 w-3" />
+            <span>Edit</span>
+          </button>
+          <Link
+            href={`/learning/${learning.id}`}
+            className="inline-flex items-center gap-1 text-xs text-white hover:underline font-medium"
+          >
+            <span>Open</span>
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
       </div>
+
+      {isEditOpen && (
+        <UpdateLearningModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          learning={learning}
+        />
+      )}
     </div>
   );
 }

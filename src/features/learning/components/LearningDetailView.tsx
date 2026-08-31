@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { StatusPill } from "@/components/shared/StatusPill";
 import { RoadmapTimeline, RoadmapTopicData } from "./RoadmapTimeline";
+import { UpdateLearningModal } from "./UpdateLearningModal";
 import { deleteLearningItemAction } from "../actions";
 import { useRouter } from "next/navigation";
 
@@ -23,6 +24,7 @@ interface LearningDetailViewProps {
 export function LearningDetailView({ learning }: LearningDetailViewProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const totalTopics = learning.topics.length;
   const completedTopics = learning.topics.filter((t) => t.status === "COMPLETED").length;
@@ -47,16 +49,28 @@ export function LearningDetailView({ learning }: LearningDetailViewProps) {
           <span>All Learning Roadmaps</span>
         </Link>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDelete}
-          isLoading={isDeleting}
-          className="h-8 w-8 text-zinc-500 hover:text-zinc-200"
-          title="Delete roadmap"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditOpen(true)}
+            className="h-8 text-xs flex items-center gap-1.5"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+            <span>Edit Roadmap</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDelete}
+            isLoading={isDeleting}
+            className="h-8 w-8 text-zinc-500 hover:text-zinc-200"
+            title="Delete roadmap"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Header Card */}
@@ -89,6 +103,15 @@ export function LearningDetailView({ learning }: LearningDetailViewProps) {
 
       {/* Roadmap Timeline */}
       <RoadmapTimeline learningItemId={learning.id} topics={learning.topics} />
+
+      {/* Edit Roadmap Modal */}
+      {isEditOpen && (
+        <UpdateLearningModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          learning={learning}
+        />
+      )}
     </div>
   );
 }
